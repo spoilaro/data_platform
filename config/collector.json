@@ -1,0 +1,7 @@
+{
+  "input": {
+    "name": "SomeName",
+    "path": "test_logs/log.json"
+  },
+  "output": "data/logs"
+}
