@@ -39,7 +39,8 @@ fn initialize_db() {
             timestamp datetime,
             module varchar(30),
             level varchar(10),
-            message text
+            message text,
+            PRIMARY KEY(timestamp, module)
         )
         ",
         (),
@@ -76,7 +77,7 @@ fn parse_data(buffer: &[u8]) -> Vec<LogRow> {
 fn save_data(conn: Connection, rows: Vec<LogRow>) {
     for row in rows {
         conn.execute(
-            "INSERT INTO LOGS
+            "INSERT OR IGNORE INTO LOGS
             (timestamp, module, level, message)
             values (?1, ?2, ?3, ?4)
             ",
