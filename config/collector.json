@@ -3,5 +3,6 @@
     "name": "SomeName",
     "path": "test_logs/log.json"
   },
-  "output": "data/logs"
+  "output": "data/logs.log",
+  "interval": 5
 }

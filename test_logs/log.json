@@ -42,13 +42,7 @@
   }
   {
     "timestamp": "2023-03-01 11:00:00",
-    "module": "Yeees",
-    "level": "WARN",
-    "message": "Not okay"
-  }
-  {
-    "timestamp": "2023-03-01 11:00:00",
-    "module": "Huiii",
+    "module": "Nooo",
     "level": "WARN",
     "message": "Not okay"
   }

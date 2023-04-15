@@ -20,6 +20,7 @@ struct InputSource {
 struct Config {
     input: InputSource,
     output: String,
+    interval: u64,
 }
 
 async fn get_config() -> Result<Config> {
@@ -35,7 +36,7 @@ async fn dump_data(data: &[u8], path: &String) {
 
     let mut file = OpenOptions::new()
         .append(true)
-        .open("data/logs.log")
+        .open(path)
         .expect("Could not open file");
 
     // let mut writer = BufWriter::new(out_file);
@@ -46,28 +47,37 @@ async fn dump_data(data: &[u8], path: &String) {
     file.write(data).expect("Could not write");
 }
 
+/// Cleans the output file everytime the service is restarted
+async fn clean_file(path: &String) {
+    let mut file = File::create(path).await.unwrap();
+
+    file.write("".as_bytes()).await.unwrap();
+}
+
 #[tokio::main]
 async fn main() {
     // Reads the config from config/collector.json
     let config = get_config().await.unwrap();
-
     let file = File::open(config.input.path).await.unwrap();
-
     let mut reader = BufReader::new(file);
 
-    loop {
-        println!("New Round");
-        let buffer = reader.fill_buf().await.unwrap();
-        // let data = core::str::from_utf8(buffer).unwrap();
+    clean_file(&config.output).await;
 
-        // Process the data
-        // print!("{}", data);
+    loop {
+        println!("Checking for more logs");
+        let buffer = reader.fill_buf().await.unwrap();
+
+        if buffer.len() > 0 {
+            println!("Found more longs, dumping...")
+        } else {
+            println!("No new logs found...")
+        }
 
         dump_data(buffer, &config.output).await;
 
         // Tells the reader not to return any more read bytes
         let length = buffer.len();
         reader.consume(length);
-        sleep(Duration::from_secs(4));
+        sleep(Duration::from_secs(config.interval));
     }
 }
