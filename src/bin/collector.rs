@@ -39,11 +39,6 @@ async fn dump_data(data: &[u8], path: &String) {
         .open(path)
         .expect("Could not open file");
 
-    // let mut writer = BufWriter::new(out_file);
-    //
-    // writer.write(data).await.unwrap();
-    // writer.flush().await.unwrap();
-    //
     file.write(data).expect("Could not write");
 }
 

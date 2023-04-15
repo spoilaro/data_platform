@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "SomeName",
-    "path": "test_logs/log.json"
+    "path": "test_logs/some_service.log"
   },
   "output": "data/logs.log",
   "interval": 5
