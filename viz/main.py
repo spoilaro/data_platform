@@ -1,6 +1,8 @@
 import sqlite3
 from flask import Flask
+from flask import send_file
 import pandas as pd
+pd.options.plotting.backend = "plotly"
 
 
 app = Flask(__name__)
@@ -10,9 +12,7 @@ app = Flask(__name__)
 def plot():
 
     df = get_data()
-    create_plot(df)
-
-    return "hi"
+    return create_plot(df)
 
 
 def get_data():
@@ -26,8 +26,17 @@ def get_data():
 
 
 def create_plot(df):
-    g_df = df.groupby(["level", "module"])["module"].count()
-    g_df.to_csv("viz/export_data/out.csv")
+    """
+    Visualizes the data and serves the image
+    """
+    g_df = df.groupby(["level", "module"])[
+        "module"].count().reset_index(name="counts")
+
+    # g_df.to_csv("viz/export_data/out.csv")
+    pl = df.plot()
+    pl.write_image("viz/export_data/plot.png")
+
+    return send_file("export_data/plot.png", as_attachment=True)
 
 
 if __name__ == "__main__":
