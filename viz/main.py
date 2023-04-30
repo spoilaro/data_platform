@@ -32,8 +32,9 @@ def create_plot(df):
     g_df = df.groupby(["level", "module"])[
         "module"].count().reset_index(name="counts")
 
-    # g_df.to_csv("viz/export_data/out.csv")
-    pl = df.plot()
+    print(g_df)
+
+    pl = g_df.plot.bar(x="level", y="counts")
     pl.write_image("viz/export_data/plot.png")
 
     return send_file("export_data/plot.png", as_attachment=True)
