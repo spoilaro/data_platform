@@ -9,6 +9,7 @@ use tokio::{
 };
 
 use std::str;
+use tokio::net::TcpStream;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct InputSource {
@@ -31,15 +32,17 @@ async fn get_config() -> Result<Config> {
     Ok(config)
 }
 
-async fn dump_data(data: &[u8], path: &String) {
-    // TODO: Check the files size
+async fn dump_data(data: &str) {
+    let stream = TcpStream::connect("localhost:8001").await.unwrap();
+    let mut writer = BufWriter::new(stream);
 
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(path)
-        .expect("Could not open file");
+    if data == "" {
+        return;
+    }
 
-    file.write(data).expect("Could not write");
+    println!("LINE: {:?}", data);
+    writer.write_all(data.as_bytes()).await.unwrap();
+    writer.flush().await.unwrap();
 }
 
 /// Cleans the output file everytime the service is restarted
@@ -63,12 +66,16 @@ async fn main() {
         let buffer = reader.fill_buf().await.unwrap();
 
         if buffer.len() > 0 {
-            println!("Found more longs, dumping...")
+            println!("Found more longs, dumping...");
+            let lines = std::str::from_utf8(buffer).unwrap();
+            // let lines = lines.split("\n");
+
+            // for line in lines {
+            dump_data(lines).await;
+            // }
         } else {
             println!("No new logs found...")
         }
-
-        dump_data(buffer, &config.output).await;
 
         // Tells the reader not to return any more read bytes
         let length = buffer.len();

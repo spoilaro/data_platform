@@ -2,13 +2,13 @@ use rusqlite::Connection;
 
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Result;
+use std::error::Error;
 use std::str;
 use std::thread::sleep;
 use std::time::Duration;
-use tokio::{
-    fs::{self, File},
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
-};
+use tokio::fs;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::TcpListener;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -51,40 +51,30 @@ fn initialize_db() {
 }
 
 /// Parse the plain text data into vector of logrow structs
-fn parse_data(buffer: &[u8]) -> Vec<LogRow> {
-    let mut rows: Vec<LogRow> = vec![];
-    let data = std::str::from_utf8(buffer).unwrap();
+fn parse_data(buffer: String) -> LogRow {
+    let tokens = buffer.split(" ").collect::<Vec<&str>>();
 
-    let lines = data.split("\n");
+    let row = LogRow {
+        timestamp: String::from(tokens[0]),
+        module: String::from(tokens[1]),
+        level: String::from(tokens[2]),
+        message: String::from(tokens[3]),
+    };
 
-    for line in lines {
-        if line == "" {
-            continue;
-        }
-        let tokens = line.split(" ").collect::<Vec<&str>>();
-
-        rows.push(LogRow {
-            timestamp: String::from(tokens[0]),
-            module: String::from(tokens[1]),
-            level: String::from(tokens[2]),
-            message: String::from(tokens[3]),
-        });
-    }
-
-    rows
+    row
 }
 
-fn save_data(conn: Connection, rows: Vec<LogRow>) {
-    for row in rows {
-        conn.execute(
-            "INSERT OR IGNORE INTO LOGS
+fn save_data(row: LogRow) {
+    let conn = Connection::open("warehouse/logs.db").unwrap();
+
+    conn.execute(
+        "INSERT OR IGNORE INTO LOGS
             (timestamp, module, level, message)
             values (?1, ?2, ?3, ?4)
             ",
-            (&row.timestamp, &row.module, &row.level, &row.message),
-        )
-        .unwrap();
-    }
+        (&row.timestamp, &row.module, &row.level, &row.message),
+    )
+    .unwrap();
 
     conn.close().unwrap();
 }
@@ -94,30 +84,33 @@ async fn main() {
     // Reads the config from config/warehouse.json
     let config = get_config().await.unwrap();
 
-    // Opens the "datalake" file which is just unstructured data as a text
-    let file = File::open(config.data).await.unwrap();
-    let mut reader = BufReader::new(file);
-
     // Database connection
     initialize_db();
 
+    let address = "localhost:8001";
+
+    // Binds the address set above
+    let listener = TcpListener::bind(address).await.unwrap();
+
+    println!("\nStarting the server, address: {}", address);
+
     loop {
-        println!("Checking for more data");
-        let buffer = reader.fill_buf().await.unwrap();
+        // Gets the socket and the address of the connected client
+        let (socket, addr) = listener.accept().await.unwrap();
 
-        if buffer.len() > 0 {
-            println!("Found new data, parsing and saving");
-            let rows = parse_data(buffer);
+        // New thread for each of the clients
+        tokio::spawn(async move {
+            // let (reader, _writer) = socket.split();
+            let mut reader = BufReader::new(socket);
 
-            let conn = Connection::open("warehouse/logs.db").unwrap();
-            save_data(conn, rows);
-        } else {
-            println!("No new data found...")
-        }
+            // reader.read_line(&mut lines).await.unwrap();
+            let mut lines = reader.lines();
 
-        // Tells the reader not to return any more read bytes
-        let length = buffer.len();
-        reader.consume(length);
-        sleep(Duration::from_secs(config.interval));
+            while let Some(line) = lines.next_line().await.unwrap() {
+                println!("LINE: {}", line);
+                let row = parse_data(line);
+                save_data(row);
+            }
+        });
     }
 }
